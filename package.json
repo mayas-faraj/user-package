@@ -1,0 +1,32 @@
+{
+  "name": "@eurikatech/user",
+  "version": "1.0.0",
+  "description": "user module for microservices",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mayas-faraj/user-package.git"
+  },
+  "author": "Mayas Faraj",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mayas-faraj/user-package/issues"
+  },
+  "homepage": "https://github.com/mayas-faraj/user-package#readme",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
