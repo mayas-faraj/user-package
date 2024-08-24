@@ -1,35 +1,54 @@
 import { PermissionError } from "./error.js";
 
+type NodeCache = {
+  get(key: string | number): string[] | undefined;
+};
+
 export type User = {
   sub: string;
   aud: string;
   name: string;
-  role: string;
+  roles: string[];
 };
 
-export enum Role {
-  SUBSCRIBER,
-  SYSTEM,
-  CONTENT_READER,
-  CONTENT_MANAGER,
-  LOGISTICS_MANAGER,
-  ADMIN,
-  SUPER_ADMIN,
+type PermissionNameGetter = (resourceName: string, permissionType: string) => string;
+
+export class Authorization {
+  constructor(cache: NodeCache, roles: string[], permissionNameGetter?: PermissionNameGetter, isDevelopment?: boolean) {
+    this.cache = cache;
+    this.roles = roles;
+    this.getPermissionName = permissionNameGetter ?? this.getDefaultGetPermissionName();
+    this.isDevelopment = isDevelopment === true;
+  }
+
+  check(resourceName: string, permissionType: string): never | true {
+    const permissions = new Set<string>();
+    for (const role of this.roles) {
+      const rolePermissions = this.cache.get(role);
+      if (rolePermissions !== undefined) for (const permission of rolePermissions) permissions.add(permission);
+    }
+    if (permissions.has(this.getPermissionName(resourceName, permissionType))) return true;
+    else {
+      const message = `${this.roles.length === 1 ? "The" : ""} ${this.roles.join(", ")} ${
+        this.roles.length === 1 ? "is" : "are"
+      } unauthorized to access the resource: ${resourceName}. `;
+      const details = `the required permission: ${this.getPermissionName(resourceName, permissionType)} is not found in the permission list: ${Array.from(permissions).join(
+        ", "
+      )}.`;
+      throw new PermissionError(`${message}${this.isDevelopment && details}`);
+    }
+  }
+
+  public getDefaultGetPermissionName(): PermissionNameGetter {
+    return (resourceName, permissionType) => `${permissionType.toLowerCase()}-${this.pascalToKabab(resourceName)}`;
+  }
+
+  private pascalToKabab(text: string) {
+    return text.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+  }
+
+  private cache: NodeCache;
+  private roles: string[];
+  private getPermissionName: PermissionNameGetter;
+  private isDevelopment: boolean;
 }
-
-export const checkAuthorization = (
-  role: string,
-  ...allowedRoles: Role[]
-): true | never => {
-  const userRole = Role[role as keyof typeof Role] as Role;
-
-  for (const allowedRole of allowedRoles)
-    if (userRole === allowedRole) return true;
-  throw new PermissionError(
-    `${
-      role ? Role[userRole].toLowerCase() : "user without a role"
-    } is unauthorized to access resources, only allowd for roles: ${allowedRoles.map(
-      (role) => Role[role]?.toLowerCase()
-    )}`
-  );
-};
