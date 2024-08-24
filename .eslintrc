@@ -1,0 +1,21 @@
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint"
+    ],
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/eslint-recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "rules": {
+      "quotes": ["error", "double"], // enforce double quotes for strings
+      "semi": ["error", "always"], // require semicolons at the end of statements
+      "comma-dangle": ["error", "never"],
+      "@typescript-eslint/no-empty-function": "off", // allow empty functions
+      "@typescript-eslint/explicit-module-boundary-types": "off", // allow implicit return types
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }], // require all unused variables to be prefixed with an underscore
+      "@typescript-eslint/no-explicit-any": "off" // allow the use of the 'any' type
+    }
+}
