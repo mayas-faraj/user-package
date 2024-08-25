@@ -11,7 +11,7 @@ export type User = {
   roles: string[];
 };
 
-type PermissionNameGetter = (resourceName: string, permissionType: string) => string;
+type PermissionNameGetter = (permissionType: string, resourceName: string) => string;
 
 export class Authorization {
   constructor(cache: NodeCache, roles: string[], permissionNameGetter?: PermissionNameGetter, isDevelopment?: boolean) {
@@ -21,26 +21,22 @@ export class Authorization {
     this.isDevelopment = isDevelopment === true;
   }
 
-  check(resourceName: string, permissionType: string): never | true {
+  check(permissionType: string, resourceName: string): never | true {
     const permissions = new Set<string>();
     for (const role of this.roles) {
       const rolePermissions = this.cache.get(role);
       if (rolePermissions !== undefined) for (const permission of rolePermissions) permissions.add(permission);
     }
-    if (permissions.has(this.getPermissionName(resourceName, permissionType))) return true;
+    if (permissions.has(this.getPermissionName(permissionType, resourceName))) return true;
     else {
-      const message = `${this.roles.length === 1 ? "The" : ""} ${this.roles.join(", ")} ${
-        this.roles.length === 1 ? "is" : "are"
-      } unauthorized to access the resource: ${resourceName}. `;
-      const details = `the required permission: ${this.getPermissionName(resourceName, permissionType)} is not found in the permission list: ${Array.from(permissions).join(
-        ", "
-      )}.`;
+      const message = `${this.roles.length === 1 ? "The" : ""} ${this.roles.join(", ")} ${this.roles.length === 1 ? "is" : "are"} unauthorized to access the resource: ${resourceName}. `;
+      const details = `the required permission: ${this.getPermissionName(permissionType, resourceName)} is not found in the permission list: ${Array.from(permissions).join(", ")}.`;
       throw new PermissionError(`${message}${this.isDevelopment && details}`);
     }
   }
 
   public getDefaultGetPermissionName(): PermissionNameGetter {
-    return (resourceName, permissionType) => `${permissionType.toLowerCase()}-${this.pascalToKabab(resourceName)}`;
+    return (permissionType, resourceName) => `${permissionType.toLowerCase()}-${this.pascalToKabab(resourceName)}`;
   }
 
   private pascalToKabab(text: string) {
