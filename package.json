@@ -1,6 +1,6 @@
 {
   "name": "@eurikatech/user",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "user module for microservices",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
