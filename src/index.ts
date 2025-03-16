@@ -30,8 +30,8 @@ export class Authorization {
       }
     if (permissions.has(this.getPermissionName(permissionType, resourceName))) return true;
     else {
-      const message = `${this.roles?.length === 1 ? "The" : ""} ${this.roles?.join(", ")} ${this.roles?.length === 1 ? "is" : "are"} unauthorized to access the resource: ${resourceName}. `;
-      const details = `the required permission: ${this.getPermissionName(permissionType, resourceName)} is not found in the permission list: ${Array.from(permissions).join(", ")}.`;
+      const message = `Access to ${resourceName} is denied for ${this.roles?.length === 1 ? "the" : ""} ${this.roles?.join(", ")}.`;
+      const details = `The required permission '${this.getPermissionName(permissionType, resourceName)}' is missing from the assigned permissions: ${Array.from(permissions).map(permission => `'${permission}'`).join(", ")}.`;
       throw new PermissionError(`${message}${this.isDevelopment && details}`);
     }
   }
