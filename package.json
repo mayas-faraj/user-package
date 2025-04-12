@@ -1,6 +1,6 @@
 {
   "name": "@eurikatech/user",
-  "version": "2.0.8",
+  "version": "2.1.0",
   "description": "user module for microservices",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,6 +27,12 @@
   },
   "homepage": "https://github.com/mayas-faraj/user-package#readme",
   "devDependencies": {
+    "@types/node": "^22.14.1",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "node-cache": "^5.1.2",
+    "redis": "^4.7.0"
   }
 }
