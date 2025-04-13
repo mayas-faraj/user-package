@@ -4,6 +4,7 @@ import Redis from "redis";
 import dotenv from "dotenv";
 
 // Read redis info
+dotenv.config();
 const redisUrl = process.env.REDIS_URL;
 const redisRolesChannel = process.env.REDIS_ROLES_CHANNEL;
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -32,13 +33,14 @@ type Logger = {
 type PermissionNameGetter = (permissionType: string, resourceName: string) => string;
 
 export class Authorization {
-  constructor(roles: Role[], permissionNameGetter?: PermissionNameGetter, logger?: Logger) {
+  constructor(roles?: Role[], permissionNameGetter?: PermissionNameGetter, logger?: Logger) {
     this.getPermissionName = permissionNameGetter ?? this.getDefaultGetPermissionName();
     this.roleCache = null;
     this.roleRedisClient = null;
 
     // Save roles to cache
-    if (redisUrl === undefined) this.setRoleCache(roles, logger);
+    if (!roles?.length) logger?.info("No roles to set.");
+    else if (redisUrl === undefined) this.setRoleCache(roles, logger);
     else this.setRoleRedisClient(roles, logger);
   }
 
