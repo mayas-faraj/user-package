@@ -25,6 +25,8 @@ type Role = {
   }>;
 };
 
+type RolePermission = { [key: string]: string[] };
+
 type Logger = {
   info: (message?: string) => void;
   error: (message?: string) => void;
@@ -33,15 +35,29 @@ type Logger = {
 type PermissionNameGetter = (permissionType: string, resourceName: string) => string;
 
 export class Authorization {
-  constructor(roles?: Role[], permissionNameGetter?: PermissionNameGetter, logger?: Logger) {
+  constructor(permissionNameGetter?: PermissionNameGetter, logger?: Logger) {
     this.getPermissionName = permissionNameGetter ?? this.getDefaultGetPermissionName();
+    this.logger = logger ?? null;
     this.roleCache = null;
-    this.roleRedisClient = null;
 
+    this.roleRedisClient = Redis.createClient({ url: redisUrl });
+    this.roleRedisClient.on("error", (err) => {
+      this.logger?.error("error in redis client");
+      this.logger?.error((err as Error).stack);
+    });
+
+    const redisConnect = async () => await this.roleRedisClient?.connect();
+    redisConnect();
+  }
+
+  public async SaveRolesToCache(roles?: Role[]) {
+    // Convert roles array to rolePermissions object
+    const rolePermissions: RolePermission = {};
+    if (roles?.length) for (const role of roles) rolePermissions[role.name] = role.permissions.map((permission) => this.getPermissionName(permission.type, permission.resource.name));
     // Save roles to cache
-    if (!roles?.length) logger?.info("No roles to set.");
-    else if (redisUrl === undefined) this.setRoleCache(roles, logger);
-    else this.setRoleRedisClient(roles, logger);
+    if (!roles?.length) this.logger?.info("No roles to save to cache.");
+    else if (redisUrl === undefined) this.setRoleNodeCache(rolePermissions);
+    else await this.setRoleRedisClient(rolePermissions);
   }
 
   public async check(userRoles: string[], permissionType: string, resourceName: string): Promise<never | true> {
@@ -52,6 +68,7 @@ export class Authorization {
       // Get permissions from cache
       if (this.roleCache !== null) rolePermissions = this.roleCache.get(role) ?? null;
       else if (this.roleRedisClient !== null) rolePermissions = await this.roleRedisClient.sMembers(`role:${role}`);
+      else this.logger?.error("there is no roles in the cache");
       // Add permissions to set
       if (rolePermissions !== null) for (const permission of rolePermissions) permissions.add(permission);
     }
@@ -70,46 +87,35 @@ export class Authorization {
     return (permissionType, resourceName) => `${permissionType.toLowerCase()}-${this.pascalToKabab(resourceName)}`;
   }
 
-  private pascalToKabab(text: string) {
-    return text.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
-  }
-
-  private setRoleCache(roles: Role[], logger?: Logger) {
+  public setRoleNodeCache(rolePermissions: RolePermission) {
     // Write roles into node cache
     this.roleCache = new NodeCache({ stdTTL: 0 });
 
     // Set node cache roles
-    for (const role of roles)
-      this.roleCache.set(
-        role.name,
-        role.permissions.map((permission) => this.getPermissionName(permission.type, permission.resource.name))
-      );
-    logger?.info("roles have been stored in role cache.");
+    for (const role of Object.keys(rolePermissions)) this.roleCache.set(role, rolePermissions[role as keyof typeof rolePermissions]);
+    this.logger?.info("roles have been stored in role cache.");
   }
 
-  private async setRoleRedisClient(roles: Role[], logger?: Logger) {
+  private async setRoleRedisClient(rolePermissions: RolePermission) {
     // Write roles into redis cache
-    this.roleRedisClient = Redis.createClient({ url: redisUrl });
-    this.roleRedisClient.on("error", (err) => {
-      logger?.error("error in redis client");
-      logger?.error((err as Error).stack);
-    });
-    await this.roleRedisClient.connect();
-    for (const role of roles) {
-      await this.roleRedisClient.sAdd(
-        `role:${role.name}`,
-        role.permissions.map((permission) => this.getPermissionName(permission.type, permission.resource.name))
-      );
-    }
+    if (this.roleRedisClient) {
+      for (const role of Object.keys(rolePermissions)) await this.roleRedisClient.sAdd(`role:${role}`, rolePermissions[role as keyof typeof rolePermissions]);
+      this.logger?.info("roles have been stored in redis");
 
-    // Notify system about completing redis roles
-    if (redisRolesChannel !== undefined) {
-      const redisMessage = "roles have been stored in redis";
-      logger?.info(`publish to channel [${redisRolesChannel}] the message: ${redisMessage}`);
-      await this.roleRedisClient.publish(redisRolesChannel, redisMessage);
-    }
+      // Notify system about completing redis roles
+      if (redisRolesChannel !== undefined) {
+        const redisMessage = "roles has been updated";
+        this.logger?.info(`publish to channel [${redisRolesChannel}] the message: ${redisMessage}`);
+        await this.roleRedisClient.publish(redisRolesChannel, redisMessage);
+      }
+    } else this.logger?.error("redis client is not initialized.");
   }
 
+  private pascalToKabab(text: string) {
+    return text.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+  }
+
+  private logger: Logger | null;
   private roleCache: NodeCache | null;
   private roleRedisClient: Redis.RedisClientType | null;
   private getPermissionName: PermissionNameGetter;
